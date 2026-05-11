@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Grooming Dashboard</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+:root {
+  --teal: #5bbcb0;
+  --teal-dark: #3fa99c;
+  --teal-light: #e8f7f6;
+  --pink: #f47f7f;
+  --pink-light: #fde8e8;
+  --gray2: #e0e0e0;
+  --gray3: #aaa;
+  --text: #333;
+  --text2: #666;
+  --green: #4caf50;
+  --orange: #ff9800;
+  --ROW: 90px;
+}
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f0f0f0; color:var(--text); font-size:13px; overflow-x:hidden; }
+
+/* ── TOP BAR ── */
+.top-bar { background:var(--teal); display:flex; align-items:center; justify-content:space-between; padding:0 12px; height:54px; position:sticky; top:0; z-index:200; box-shadow:0 2px 6px rgba(0,0,0,.15); }
+.logo-text { color:#fff; font-size:17px; font-weight:800; line-height:1.1; }
+.logo-sub  { font-size:10px; color:rgba(255,255,255,.8); letter-spacing:1.5px; text-transform:uppercase; }
+.top-actions { display:flex; gap:7px; }
+.btn-pink  { background:var(--pink); color:#fff; border:none; border-radius:20px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; }
+.btn-earn  { background:rgba(255,255,255,.18); color:#fff; border:1.5px solid rgba(255,255,255,.5); border-radius:20px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; }
+
+/* ── DATE BAR ── */
+.date-bar { background:#fff; display:flex; align-items:center; justify-content:space-between; padding:8px 14px; border-bottom:1px solid var(--gray2); position:sticky; top:54px; z-index:199; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+.nav-btn { width:32px; height:32px; border-radius:50%; border:1.5px solid var(--gray2); background:#fff; color:var(--text2); font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.date-title { font-size:15px; font-weight:700; }
+.today-btn { background:var(--teal-light); color:var(--teal-dark); border:none; border-radius:12px; padding:4px 11px; font-size:11px; font-weight:700; cursor:pointer; margin-left:8px; }
+.date-bar.is-today { background:#b2ded9; border-bottom:3px solid var(--teal-dark); }
+.date-bar.is-today .date-title { color:#1a6b63; font-size:17px; }
+body.is-today { background:#a8d8d3; }
+body.is-today .tabs { background:#c5eae6; }
+body.is-today .tab.active { background:#c5eae6; }
+body.is-today .cal-scroll { background:#ddf4f1; }
+body.is-today .hr-row { background:#ddf4f1; border-bottom-color:#9ecfca; }
+body.is-today .hr-row::after { border-top-color:#c0e8e4; }
+body.is-today .groomer-row { background:#c5eae6; }
+
+/* ── TABS ── */
+.tabs { background:#fff; display:flex; border-bottom:2px solid var(--gray2); }
+.tab { flex:1; padding:9px 4px; text-align:center; font-size:12px; font-weight:600; color:var(--gray3); cursor:pointer; border-bottom:3px solid transparent; }
+.tab.active { color:var(--teal-dark); border-bottom-color:var(--teal); }
+
+/* ── VIEWS ── */
+.view { display:none; }
+.view.active { display:block; }
+
+/* ── CALENDAR ── */
+.cal-scroll { overflow-y:auto; background:#fff; height:calc(100vh - 152px); }
+
+/* Groomer name row */
+.groomer-row { display:flex; border-bottom:1px solid var(--gray2); background:#fff; position:sticky; top:0; z-index:10; }
+.groomer-spacer { width:62px; flex-shrink:0; border-right:1px solid var(--gray2); }
+.groomer-name   { flex:1; padding:10px 14px; font-size:13px; font-weight:700; color:var(--text2); }
+
+/* Grid */
+.cal-grid { display:flex; }
+
+/* Hour label column — STATIC HTML */
+.hour-col { width:62px; flex-shrink:0; border-right:1px solid var(--gray2); background:#fff; }
+.hour-cell {
+  height: var(--ROW);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 6px 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #aaa;
+  border-bottom: 1px solid #d8d8d8;
+}
+
+/* Events column */
+.events-col { flex:1; position:relative; background:#fff; }
+
+/* One row per hour — STATIC HTML */
+.hr-row {
+  height: var(--ROW);
+  border-bottom: 1px solid #d8d8d8;
+  position: relative;
+}
+/* dashed half-hour line */
+.hr-row::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  border-top: 1px dashed #ebebeb;
+  pointer-events: none;
+}
+/* dashed quarter lines */
+.hr-row::before {
+  content: '';
+  position: absolute;
+  top: 25%; left: 0; right: 0;
+  border-top: 1px dashed #f2f2f2;
+  pointer-events: none;
+}
+
+/* Event block (positioned by JS) */
+.evt {
+  position: absolute;
+  left: 5px; right: 5px;
+  background: var(--pink-light);
+  border-left: 4px solid var(--pink);
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.1);
+  z-index: 5;
+}
+.evt.done      { background:#e8f5e9; border-color:var(--green); }
+.evt.confirmed { background:var(--teal-light); border-color:var(--teal); }
+.evt-name { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.evt-dog  { font-size:11px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.evt-addr { font-size:10px; color:var(--gray3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.evt-time { font-size:10px; color:var(--gray3); }
+
+/* No-events message */
+.no-evts { position:absolute; top:30%; left:0; right:0; text-align:center; color:var(--gray3); font-size:13px; pointer-events:none; }
+
+/* ── CLIENTS ── */
+.search-wrap { padding:10px; }
+.search-bar { background:#fff; border-radius:20px; padding:8px 14px; display:flex; align-items:center; gap:8px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+.search-bar input { border:none; outline:none; flex:1; font-size:14px; background:transparent; color:var(--text); }
+.search-bar input::placeholder { color:var(--gray3); }
+.clist { padding:0 10px 60px; }
+.ccard { background:#fff; border-radius:10px; padding:11px 13px; margin-bottom:7px; box-shadow:0 1px 3px rgba(0,0,0,.08); cursor:pointer; display:flex; align-items:center; gap:10px; }
+.avatar { width:40px; height:40px; background:var(--teal); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; flex-shrink:0; }
+.cname { font-size:13px; font-weight:700; }
+.csub  { font-size:11px; color:var(--text2); }
+
+/* ── NEW APPT ── */
+.fwrap { padding:10px 10px 60px; }
+.fcard { background:#fff; border-radius:10px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.fsec { font-size:11px; font-weight:700; color:var(--teal-dark); text-transform:uppercase; letter-spacing:.5px; margin:14px 0 8px; border-top:1px solid var(--gray2); padding-top:12px; }
+.fsec.first { margin-top:0; border-top:none; padding-top:0; }
+.fg { margin-bottom:9px; }
+.fl { font-size:11px; font-weight:600; color:var(--text2); margin-bottom:3px; display:block; }
+.fi { width:100%; border:1.5px solid var(--gray2); border-radius:8px; padding:9px 11px; font-size:13px; outline:none; color:var(--text); background:#fff; -webkit-appearance:none; }
+.fi:focus { border-color:var(--teal); }
+.fi[type=number]::-webkit-inner-spin-button,
+.fi[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.fi[type=number] { -moz-appearance:textfield; }
+.frow { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.sbtn { width:100%; background:var(--teal); color:#fff; border:none; border-radius:8px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; margin-top:6px; }
+
+/* ── MODALS ── */
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:300; align-items:flex-end; justify-content:center; }
+.overlay.open { display:flex; }
+.sheet { background:#fff; border-radius:18px 18px 0 0; width:100%; max-width:500px; padding:14px 16px 24px; max-height:88vh; overflow-y:auto; }
+.handle { width:36px; height:4px; background:var(--gray2); border-radius:2px; margin:0 auto 14px; }
+.mname { font-size:17px; font-weight:800; }
+.mdog  { font-size:13px; color:var(--teal-dark); margin:3px 0 12px; }
+.mrow  { display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px solid #f0f0f0; font-size:13px; color:var(--text2); }
+.mrow strong { color:var(--text); font-weight:600; }
+.mbtns { display:flex; gap:7px; margin-top:14px; flex-wrap:wrap; }
+.mb { flex:1; min-width:70px; padding:11px 6px; border-radius:8px; border:none; font-size:12px; font-weight:700; cursor:pointer; text-align:center; }
+.mb-call { background:var(--teal); color:#fff; }
+.mb-sms  { background:var(--green); color:#fff; }
+.mb-map  { background:var(--gray2); color:var(--text); }
+.mb-done { background:var(--pink); color:#fff; }
+.mb-close { background:var(--gray2); color:var(--text); width:100%; margin-top:8px; padding:11px; border-radius:8px; border:none; font-size:13px; font-weight:700; cursor:pointer; }
+.sbadge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; }
+.sb-PENDIENTE  { background:#fff3e0; color:var(--orange); }
+.sb-CONFIRMADO { background:var(--teal-light); color:var(--teal-dark); }
+.sb-LISTO      { background:#e8f5e9; color:var(--green); }
+.ehead  { background:var(--teal); color:#fff; border-radius:10px; padding:16px; text-align:center; margin-bottom:12px; }
+.etotal { font-size:36px; font-weight:800; }
+.esub   { font-size:11px; opacity:.85; margin-bottom:4px; }
+.erow   { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0; }
+.eday   { font-size:13px; font-weight:600; }
+.eday-s { font-size:11px; color:var(--text2); }
+.eamt   { font-size:15px; font-weight:700; color:var(--green); }
+.etoday { color:var(--teal-dark); }
+
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#222; color:#fff; padding:9px 22px; border-radius:20px; font-size:13px; font-weight:600; z-index:999; opacity:0; transition:opacity .2s; pointer-events:none; white-space:nowrap; }
+.toast.show { opacity:1; }
+.empty-msg { text-align:center; padding:30px; color:var(--gray3); }
+
+/* ── MODAL REDESIGN ── */
+.m-client-name { font-size:20px; font-weight:800; color:#222; margin-bottom:4px; }
+.m-dog-row { font-size:14px; color:var(--teal-dark); font-weight:600; margin-bottom:4px; }
+.m-time-row { font-size:13px; color:#888; margin-bottom:14px; }
+.m-info-card {
+  display:flex; align-items:center; gap:10px;
+  background:#fafafa; border:1px solid #eee;
+  border-radius:10px; padding:10px 12px;
+  margin-bottom:8px;
+}
+.m-info-icon { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.m-info-text { flex:1; font-size:13px; font-weight:600; color:#333; min-width:0; line-height:1.4; }
+.m-icon-btn {
+  display:flex; align-items:center; gap:4px;
+  border:none; border-radius:8px; padding:7px 11px;
+  font-size:12px; font-weight:700; cursor:pointer;
+  white-space:nowrap; flex-shrink:0;
+}
+.m-service-row { background:#f8f4ff; border:1px solid #e8deff; border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:13px; color:#555; }
+.m-notes-row { background:#fffbf0; border:1px solid #fce8a0; border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:13px; color:#666; }
+.m-done-btn { width:100%; background:var(--pink); color:white; border:none; border-radius:10px; padding:13px; font-size:14px; font-weight:700; cursor:pointer; margin-top:6px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div>
+    <div class="logo-text">🐾 Grooming Van</div>
+    <div class="logo-sub">Pet Spa</div>
+  </div>
+  <div class="top-actions">
+    <button class="btn-earn" onclick="openEarnings()">💰 Earnings</button>
+    <button class="btn-pink"  onclick="gotoNew()">+ Nueva</button>
+  </div>
+</div>
+
+<!-- DATE BAR -->
+<div class="date-bar" id="date-bar">
+  <button class="nav-btn" onclick="changeDay(-1)">‹</button>
+  <div style="display:flex;align-items:center;">
+    <div class="date-title" id="date-title"></div>
+    <button class="today-btn" onclick="goToday()">Hoy</button>
+  </div>
+  <button class="nav-btn" onclick="changeDay(1)">›</button>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="showView('calendar',this)">📅 Calendario</div>
+  <div class="tab" onclick="showView('clients',this)">👥 Clientes</div>
+  <div class="tab" onclick="showView('new-appt',this)">✏️ Nueva Cita</div>
+</div>
+
+<!-- ══════════ CALENDAR VIEW ══════════ -->
+<div class="view active" id="view-calendar">
+  <div class="cal-scroll">
+
+    <!-- Groomer name header -->
+    <div class="groomer-row">
+      <div class="groomer-spacer"></div>
+      <div class="groomer-name">Dayana Tablante</div>
+    </div>
+
+    <!-- STATIC GRID: hours always visible -->
+    <div class="cal-grid">
+
+      <!-- Hour labels (static) -->
+      <div class="hour-col">
+        <div class="hour-cell">8 AM</div>
+        <div class="hour-cell">9 AM</div>
+        <div class="hour-cell">10 AM</div>
+        <div class="hour-cell">11 AM</div>
+        <div class="hour-cell">12 PM</div>
+        <div class="hour-cell">1 PM</div>
+        <div class="hour-cell">2 PM</div>
+        <div class="hour-cell">3 PM</div>
+        <div class="hour-cell">4 PM</div>
+        <div class="hour-cell">5 PM</div>
+        <div class="hour-cell">6 PM</div>
+      </div>
+
+      <!-- Events area (rows static, events injected by JS) -->
+      <div class="events-col" id="events-col">
+        <div class="hr-row"></div><!-- 8 AM -->
+        <div class="hr-row"></div><!-- 9 AM -->
+        <div class="hr-row"></div><!-- 10 AM -->
+        <div class="hr-row"></div><!-- 11 AM -->
+        <div class="hr-row"></div><!-- 12 PM -->
+        <div class="hr-row"></div><!-- 1 PM -->
+        <div class="hr-row"></div><!-- 2 PM -->
+        <div class="hr-row"></div><!-- 3 PM -->
+        <div class="hr-row"></div><!-- 4 PM -->
+        <div class="hr-row"></div><!-- 5 PM -->
+        <div class="hr-row"></div><!-- 6 PM -->
+      </div>
+
+    </div><!-- /cal-grid -->
+  </div><!-- /cal-scroll -->
+</div>
+
+<!-- ══════════ CLIENTS VIEW ══════════ -->
+<div class="view" id="view-clients">
+  <div class="search-wrap">
+    <div class="search-bar">
+      <span style="color:var(--gray3);">🔍</span>
+      <input type="text" placeholder="Buscar cliente o perro..." oninput="filterClients(this.value)">
+    </div>
+  </div>
+  <div class="clist" id="clients-list"><div class="empty-msg">Cargando...</div></div>
+</div>
+
+<!-- ══════════ NEW APPT VIEW ══════════ -->
+<div class="view" id="view-new-appt">
+  <div class="fwrap">
+    <div class="fcard">
+      <div class="fsec first">Cliente</div>
+      <div class="fg"><label class="fl">Nombre *</label><input class="fi" id="f-name" type="text" placeholder="Jane Smith"></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Teléfono</label><input class="fi" id="f-phone" type="tel" placeholder="614-xxx-xxxx"></div>
+        <div class="fg"><label class="fl">Email</label><input class="fi" id="f-email" type="email" placeholder="email@..."></div>
+      </div>
+      <div class="fg"><label class="fl">Dirección completa</label><input class="fi" id="f-address" type="text" placeholder="123 Main St, Columbus OH"></div>
+
+      <div class="fsec">Perro</div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Nombre del perro *</label><input class="fi" id="f-dog" type="text" placeholder="Buddy"></div>
+        <div class="fg"><label class="fl">Raza</label><input class="fi" id="f-breed" type="text" placeholder="Poodle, Golden..."></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Peso (lbs)</label><input class="fi" id="f-weight" type="number" placeholder="25"></div>
+        <div class="fg"><label class="fl">Servicio</label>
+          <select class="fi" id="f-service">
+            <option value="">Seleccionar</option>
+            <option>Full Groom</option><option>Bath &amp; Brush</option>
+            <option>Nail Trim</option><option>Ear Cleaning</option><option>De-shedding</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="fsec">Fecha y Hora</div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Fecha *</label><input class="fi" id="f-date" type="date"></div>
+        <div class="fg"><label class="fl">Hora *</label>
+          <select class="fi" id="f-time">
+            <option value="">Seleccionar</option>
+            <option>8:00 AM</option><option>8:30 AM</option><option>9:00 AM</option><option>9:30 AM</option>
+            <option>10:00 AM</option><option>10:30 AM</option><option>11:00 AM</option><option>11:30 AM</option>
+            <option>12:00 PM</option><option>12:30 PM</option><option>1:00 PM</option><option>1:30 PM</option>
+            <option>2:00 PM</option><option>2:30 PM</option><option>3:00 PM</option><option>3:30 PM</option>
+            <option>4:00 PM</option><option>4:30 PM</option><option>5:00 PM</option><option>5:30 PM</option>
+            <option>6:00 PM</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Precio ($)</label><input class="fi" id="f-price" type="number" placeholder="75"></div>
+        <div class="fg"><label class="fl">Notas</label><input class="fi" id="f-notes" type="text" placeholder="Detalles..."></div>
+      </div>
+      <button class="sbtn" onclick="submitNewAppt()">Guardar Cita</button>
+    </div>
+  </div>
+</div>
+
+<!-- APPT MODAL -->
+<div class="overlay" id="appt-modal" onclick="closeModal()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="handle"></div>
+
+    <!-- Status badge + close row -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span id="m-badge" class="sbadge"></span>
+      <button onclick="closeModal()" style="background:none;border:none;font-size:20px;color:#bbb;cursor:pointer;line-height:1;">✕</button>
+    </div>
+
+    <!-- Client name -->
+    <div class="m-client-name" id="m-name"></div>
+
+    <!-- Dog info -->
+    <div class="m-dog-row" id="m-dog"></div>
+
+    <!-- Time -->
+    <div class="m-time-row" id="m-time"></div>
+
+    <!-- Address row with Maps icon -->
+    <div class="m-info-card" id="m-addr-row" style="display:none;">
+      <div class="m-info-icon" style="background:#e8f0fe;">🗺️</div>
+      <div class="m-info-text" id="m-addr-text"></div>
+      <button class="m-icon-btn" id="m-map-btn" style="background:#4285f4;color:white;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Maps
+      </button>
+    </div>
+
+    <!-- Phone row with Call + Text icons -->
+    <div class="m-info-card" id="m-phone-row" style="display:none;">
+      <div class="m-info-icon" style="background:#e8f5e9;">📱</div>
+      <div class="m-info-text" id="m-phone-text"></div>
+      <div style="display:flex;gap:6px;">
+        <button class="m-icon-btn" id="m-call-btn" style="background:#4caf50;color:white;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+          Llamar
+        </button>
+        <button class="m-icon-btn" id="m-sms-btn" style="background:#5bbcb0;color:white;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+          Texto
+        </button>
+      </div>
+    </div>
+
+    <!-- Service + Price -->
+    <div class="m-service-row" id="m-service-row" style="display:none;"></div>
+
+    <!-- Notes -->
+    <div class="m-notes-row" id="m-notes-row" style="display:none;"></div>
+
+    <!-- Mark done button -->
+    <button class="m-done-btn" id="m-done-btn" onclick="" style="display:none;">✅ Marcar como Listo</button>
+
+  </div>
+</div>
+
+<!-- EARNINGS MODAL -->
+<div class="overlay" id="earn-modal" onclick="closeEarnings()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="handle"></div>
+    <div class="ehead">
+      <div class="esub">Esta semana</div>
+      <div class="etotal" id="earn-total">$0</div>
+    </div>
+    <div id="earn-days"></div>
+    <button class="mb-close" style="margin-top:14px;" onclick="closeEarnings()">Cerrar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TOKEN = 'pat0e4hLXN9hLNhrg.fe636b26b31c8cc0e7f3550d891dd8413160c94f252fd62e7d31a2d29ac99973';
+const BASE  = 'appbVvwVuBzecS3HJ';
+const TABLE = 'tblCnkWpgt124doqZ';
+
+const DAYS   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const H_START = 8;
+const HOUR_PX = 90; // must match CSS --ROW
+
+let currentDate = new Date();
+let records = [];
+
+function isoDate(d) {
+  // Use LOCAL date to avoid UTC offset shifting the day (Ohio is UTC-4/5)
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function showView(name, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  if (el) el.classList.add('active');
+}
+function gotoNew() { showView('new-appt', document.querySelectorAll('.tab')[2]); }
+
+function updateDateTitle() {
+  const d = currentDate;
+  document.getElementById('date-title').textContent =
+    DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
+  // Highlight today
+  const isToday = isoDate(d) === isoDate(new Date());
+  document.getElementById('date-bar').classList.toggle('is-today', isToday);
+  document.body.classList.toggle('is-today', isToday);
+}
+function changeDay(d) { currentDate.setDate(currentDate.getDate() + d); updateDateTitle(); placeEvents(); }
+function goToday()    { currentDate = new Date(); updateDateTitle(); placeEvents(); }
+
+// Parse time string — handles "10:00 AM", "9am", "Morning (9am-12pm)", "tarde", "mañana", etc.
+function parseTime(s) {
+  if (!s) return null;
+  const u = s.toUpperCase().trim();
+
+  // Spanish keywords → default hour
+  if (/^MA[ÑN]ANA/i.test(u)) return {h:9,  min:0};
+  if (/^TARDE/i.test(u))      return {h:14, min:0};
+  if (/^NOCHE/i.test(u))      return {h:18, min:0};
+  if (/MORNING/i.test(u))     return {h:9,  min:0};
+  if (/AFTERNOON/i.test(u))   return {h:13, min:0};
+  if (/EVENING/i.test(u))     return {h:17, min:0};
+
+  // Standard: "10:00 AM", "9AM", "9am-12pm" (take first match)
+  const m = u.match(/(\d+)(?::(\d+))?\s*(AM|PM)/);
+  if (!m) return null;
+  let h = parseInt(m[1]), min = parseInt(m[2]||'0');
+  if (m[3]==='PM' && h!==12) h+=12;
+  if (m[3]==='AM' && h===12) h=0;
+  return {h, min};
+}
+
+// Parse date string — handles "2026-05-08", "martes 6 de mayo", "6 de mayo", etc.
+const ES_MONTHS = {enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12};
+function parseDate(s) {
+  if (!s) return null;
+  s = s.trim();
+  // ISO format YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+  // Spanish: "martes 6 de mayo" or "6 de mayo" or "6 mayo"
+  const m = s.toLowerCase().match(/(\d{1,2})\s+de\s+(\w+)|(\d{1,2})\s+(\w+)/);
+  if (m) {
+    const day = parseInt(m[1]||m[3]);
+    const monthName = (m[2]||m[4]||'').toLowerCase();
+    const month = ES_MONTHS[monthName];
+    if (month) {
+      const year = new Date().getFullYear();
+      return year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    }
+  }
+  return null;
+}
+
+/* Place event blocks on the STATIC grid */
+function placeEvents() {
+  const col = document.getElementById('events-col');
+
+  // Remove old event blocks (but keep .hr-row divs)
+  col.querySelectorAll('.evt, .no-evts').forEach(el => el.remove());
+
+  const ds = isoDate(currentDate);
+  const day = records.filter(r => {
+    const raw = r['Preferred Date'] || r['Confirmed Date'] || '';
+    const parsed = parseDate(raw);
+    return parsed === ds;
+  });
+
+  if (!day.length) {
+    const msg = document.createElement('div');
+    msg.className = 'no-evts';
+    msg.textContent = 'No hay citas para este día';
+    col.appendChild(msg);
+    return;
+  }
+
+  day.forEach(r => {
+    const t = parseTime(r['Preferred Time'] || r['Confirmed Time']);
+    if (!t || t.h < H_START) return;
+
+    const y   = (t.h - H_START) * HOUR_PX + (t.min / 60) * HOUR_PX;
+    const status = r['Status'] || 'PENDIENTE';
+    const cls  = status === 'LISTO' ? 'done' : status === 'CONFIRMADO' ? 'confirmed' : '';
+    const name = r['Client Name'] || 'Sin nombre';
+    const dog  = [r['Dog name']||r['Dog Name'], r['Breed']].filter(Boolean).join(' · ');
+    const addr = r['Address'] || '';
+    const time = r['Preferred Time'] || r['Confirmed Time'] || '';
+
+    const ev = document.createElement('div');
+    ev.className = 'evt ' + cls;
+    ev.style.cssText = `top:${y+2}px; height:${HOUR_PX-6}px;`;
+    ev.innerHTML =
+      `<div class="evt-name">${name}</div>` +
+      `<div class="evt-dog">${dog}</div>` +
+      `<div class="evt-addr">${addr}</div>` +
+      `<div class="evt-time">${time}</div>`;
+    ev.onclick = () => openModal(r.id);
+    col.appendChild(ev);
+  });
+}
+
+async function fetchRecords() {
+  try {
+    const res = await fetch(
+      `https://api.airtable.com/v0/${BASE}/${TABLE}?maxRecords=300`,
+      { headers: { Authorization: 'Bearer ' + TOKEN } }
+    );
+    const data = await res.json();
+    records = (data.records || []).map(r => ({ id: r.id, ...r.fields }));
+    placeEvents();
+    renderClients();
+  } catch(e) { toast('Error al conectar con Airtable'); }
+}
+
+async function patchRecord(id, fields) {
+  await fetch(`https://api.airtable.com/v0/${BASE}/${TABLE}/${id}`, {
+    method: 'PATCH',
+    headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields })
+  });
+  await fetchRecords();
+}
+
+function renderClients(filter) {
+  filter = (filter||'').toLowerCase();
+  const list = document.getElementById('clients-list');
+  const seen = new Set();
+  const out  = records.filter(r => {
+    const key = r['Client ID'] || r['Client Name'] || '';
+    if (seen.has(key)) return false;
+    seen.add(key);
+    const n = (r['Client Name']||'').toLowerCase();
+    const d = (r['Dog name']||r['Dog Name']||'').toLowerCase();
+    return !filter || n.includes(filter) || d.includes(filter);
+  });
+  if (!out.length) { list.innerHTML = '<div class="empty-msg">Sin resultados</div>'; return; }
+  list.innerHTML = out.map(r => {
+    const name = r['Client Name'] || 'Sin nombre';
+    const ini  = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const key  = r['Client ID'] || r['Client Name'];
+    const cnt  = records.filter(x => (x['Client ID']||x['Client Name']) === key).length;
+    return `<div class="ccard" onclick="openModal('${r.id}')">
+      <div class="avatar">${ini}</div>
+      <div style="flex:1;min-width:0;"><div class="cname">${name}</div><div class="csub">${r['Phone']||''} · ${cnt} cita${cnt!==1?'s':''}</div></div>
+      <span style="color:#ccc;font-size:18px;">›</span>
+    </div>`;
+  }).join('');
+}
+function filterClients(v) { renderClients(v); }
+
+function openModal(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+
+  const status = r['Status'] || 'PENDIENTE';
+  const ph     = r['Phone']   || '';
+  const addr   = r['Address'] || '';
+  const time   = r['Preferred Time'] || r['Confirmed Time'] || '';
+  const dog    = [r['Dog name']||r['Dog Name'], r['Breed'], r['Peso LB'] ? r['Peso LB']+' lbs' : ''].filter(Boolean).join(' · ');
+
+  // Status badge
+  const b = document.getElementById('m-badge');
+  b.textContent = status; b.className = 'sbadge sb-' + status;
+
+  // Client name
+  document.getElementById('m-name').textContent = r['Client Name'] || 'Sin nombre';
+
+  // Dog info
+  document.getElementById('m-dog').textContent = dog;
+
+  // Time
+  document.getElementById('m-time').textContent = time ? '⏰ ' + time : '';
+
+  // Address card
+  const addrRow = document.getElementById('m-addr-row');
+  if (addr) {
+    addrRow.style.display = 'flex';
+    document.getElementById('m-addr-text').textContent = addr;
+    document.getElementById('m-map-btn').onclick = () => {
+      window.location.href = 'maps:?q=' + encodeURIComponent(addr);
+    };
+  } else { addrRow.style.display = 'none'; }
+
+  // Phone card
+  const phoneRow = document.getElementById('m-phone-row');
+  if (ph) {
+    phoneRow.style.display = 'flex';
+    document.getElementById('m-phone-text').textContent = ph;
+    document.getElementById('m-call-btn').onclick = () => { window.location.href = 'tel:' + ph; };
+    document.getElementById('m-sms-btn').onclick  = () => { window.location.href = 'sms:' + ph; };
+  } else { phoneRow.style.display = 'none'; }
+
+  // Service + price
+  const svcRow = document.getElementById('m-service-row');
+  const svc = [r['Service'], r['Estimated Total'] ? '💵 $'+r['Estimated Total'] : ''].filter(Boolean).join('   ');
+  if (svc) { svcRow.style.display = 'block'; svcRow.innerHTML = '✂️ ' + svc; }
+  else      { svcRow.style.display = 'none'; }
+
+  // Notes
+  const notesRow = document.getElementById('m-notes-row');
+  if (r['Notes']) { notesRow.style.display = 'block'; notesRow.innerHTML = '📝 ' + r['Notes']; }
+  else             { notesRow.style.display = 'none'; }
+
+  // Done button
+  const doneBtn = document.getElementById('m-done-btn');
+  if (status !== 'LISTO') {
+    doneBtn.style.display = 'block';
+    doneBtn.onclick = () => markDone(id);
+  } else { doneBtn.style.display = 'none'; }
+
+  document.getElementById('appt-modal').classList.add('open');
+}
+function closeModal() { document.getElementById('appt-modal').classList.remove('open'); }
+async function markDone(id) {
+  toast('Actualizando...');
+  await patchRecord(id, { Status: 'LISTO' });
+  closeModal(); toast('✅ Marcado como Listo');
+}
+
+function openEarnings() {
+  const today = new Date(), dow = today.getDay();
+  const start = new Date(today); start.setDate(today.getDate() - dow);
+  let total = 0, html = '';
+  for (let i = 0; i < 7; i++) {
+    const d  = new Date(start); d.setDate(start.getDate() + i);
+    const ds = isoDate(d);
+    const rr = records.filter(r =>
+      (r['Preferred Date']||r['Confirmed Date']||'').startsWith(ds) && r['Status']==='LISTO');
+    const sum = rr.reduce((s,r) => s + (parseFloat(r['Estimated Total'])||0), 0);
+    total += sum;
+    const isToday = ds === isoDate(new Date());
+    html += `<div class="erow">
+      <div><div class="eday ${isToday?'etoday':''}">${DAYS[d.getDay()]}</div><div class="eday-s">${rr.length} servicio${rr.length!==1?'s':''}</div></div>
+      <div class="eamt">${sum>0?'$'+sum.toFixed(0):'—'}</div>
+    </div>`;
+  }
+  document.getElementById('earn-total').textContent = '$' + total.toFixed(0);
+  document.getElementById('earn-days').innerHTML = html;
+  document.getElementById('earn-modal').classList.add('open');
+}
+function closeEarnings() { document.getElementById('earn-modal').classList.remove('open'); }
+
+async function submitNewAppt() {
+  const name = document.getElementById('f-name').value.trim();
+  const dog  = document.getElementById('f-dog').value.trim();
+  const date = document.getElementById('f-date').value;
+  const time = document.getElementById('f-time').value;
+  if (!name||!dog||!date||!time) { toast('⚠️ Faltan campos requeridos'); return; }
+  toast('Guardando...');
+  try {
+    await fetch(`https://api.airtable.com/v0/${BASE}/${TABLE}`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer '+TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: {
+        'client ID':       'C'+Date.now().toString().slice(-6),
+        'Client Name':     name,
+        'Phone':           document.getElementById('f-phone').value.trim(),
+        'Email':           document.getElementById('f-email').value.trim(),
+        'Address':         document.getElementById('f-address').value.trim(),
+        'Dog name':        dog,
+        'Breed':           document.getElementById('f-breed').value.trim(),
+        'Peso LB':         parseFloat(document.getElementById('f-weight').value)||0,
+        'Preferred Date':  date,
+        'Preferred Time':  time,
+        'Estimated Total': parseFloat(document.getElementById('f-price').value)||0,
+        'Notes':           document.getElementById('f-notes').value.trim(),
+        'Status':          'PENDIENTE',
+        'Request Date':    isoDate(new Date()),
+        'Channel':         'Dashboard'
+      }})
+    });
+    ['f-name','f-phone','f-email','f-address','f-dog','f-breed','f-weight','f-price','f-notes']
+      .forEach(id => document.getElementById(id).value='');
+    ['f-service','f-date','f-time'].forEach(id => document.getElementById(id).value='');
+    await fetchRecords();
+    toast('✅ Cita guardada');
+    showView('calendar', document.querySelectorAll('.tab')[0]);
+  } catch(e) { toast('Error al guardar'); }
+}
+
+// INIT
+updateDateTitle();
+fetchRecords();
+setInterval(fetchRecords, 60000);
+</script>
+</body>
+</html>
